@@ -5,6 +5,7 @@ let count = 0;
 request(moviesUrl, (err, response, body) => {
   if (err) {
     console.error(err);
+    return;
   }
   for (const result of JSON.parse(body).results) {
     for (const character of result.characters) {
