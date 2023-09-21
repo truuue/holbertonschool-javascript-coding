@@ -4,15 +4,13 @@ const request = require('request');
 request(process.argv[2], (err, response, body) => {
   if (err) {
     console.log(err);
-  }
-  else {
+  } else {
     const tasks = {};
     for (const task of JSON.parse(body)) {
       if (task.completed === true) {
         if (tasks[task.userId] === undefined) {
           tasks[task.userId] = 1;
-        }
-        else {
+        } else {
           tasks[task.userId] += 1;
         }
       }
