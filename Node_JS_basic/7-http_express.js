@@ -5,46 +5,52 @@ const app = express();
 const port = 1245;
 
 async function countStudents(path) {
-  try {
-    const data = await fs.readFile(path, 'utf8');
-    const response = [];
-    const students = data.split('\n');
-    let count = 0;
-    for (let i = 1; i < students.length; i += 1) {
-      if (students[i]) {
-        count += 1;
-        const student = students[i].split(',');
-        if (!response[student[3]]) response[student[3]] = [];
-        response[student[3]].push(student[0]);
+  return fs.readFile(path, 'utf8')
+    .then((data) => {
+      const stringData = data.toString();
+      const arrayData = stringData.split('\n').slice(1);
+      const filteredArrayData = arrayData.filter((line) => line !== '');
+      const namesByField = {};
+
+      filteredArrayData.forEach((line) => {
+        const parts = line.split(',');
+        const firstName = parts[0];
+        const field = parts[3];
+
+        if (!namesByField[field]) {
+          namesByField[field] = [];
+        }
+        namesByField[field].push(firstName);
+      });
+
+      const results = [`Number of students: ${filteredArrayData.length}`];
+      const fields = Object.keys(namesByField);
+      for (const field of fields) {
+        const names = namesByField[field];
+        const count = names.length;
+        const list = names.join(', ');
+        results.push(`Number of students in ${field}: ${count}. List: ${list}`);
       }
-    }
-    const result = [`Number of students: ${count}`];
-    for (const key in response) {
-      if (key) {
-        const list = response[key];
-        result.push(`Number of students in ${key}: ${list.length}. List: ${list.join(', ')}`);
-      }
-    }
-    return result.join('\n');
-  } catch (error) {
-    throw new Error('Cannot load the database');
-  }
+      return results;
+    })
+    .catch(() => {
+      throw new Error('Cannot load the database');
+    });
 }
 app.get('/', (req, res) => {
   res.send('Hello Holberton School!');
 });
 
-app.get('/students', async (req, res) => {
-  try {
-    const result = await countStudents(process.argv[2]);
-    res.send(`This is the list of our students\n${result}`);
-  } catch (error) {
-    res.status(500).send('Internal Server Error');
-  }
+app.get('/students', (req, res) => {
+  const path = process.argv[2];
+  countStudents(path)
+    .then((data) => {
+      res.send(`This is the list of our students\n${data.join('\n')}`);
+    })
+    .catch((err) => {
+      res.send(`This is the list of our students\n${err.message}`);
+    });
 });
-
-app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`);
-});
+app.listen(port);
 
 module.exports = app;

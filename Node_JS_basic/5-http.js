@@ -1,51 +1,61 @@
 const http = require('http');
-const fs = require('fs');
+const url = require('url');
+const fs = require('fs').promises;
+
+async function countStudents(path) {
+  return fs.readFile(path, 'utf8')
+    .then((data) => {
+      const stringData = data.toString();
+      const arrayData = stringData.split('\n').slice(1);
+      const filteredArrayData = arrayData.filter((line) => line !== '');
+      const namesByField = {};
+
+      filteredArrayData.forEach((line) => {
+        const parts = line.split(',');
+        const firstName = parts[0];
+        const field = parts[3];
+
+        if (!namesByField[field]) {
+          namesByField[field] = [];
+        }
+        namesByField[field].push(firstName);
+      });
+
+      const results = [`Number of students: ${filteredArrayData.length}`];
+      const fields = Object.keys(namesByField);
+      for (const field of fields) {
+        const names = namesByField[field];
+        const count = names.length;
+        const list = names.join(', ');
+        results.push(`Number of students in ${field}: ${count}. List: ${list}`);
+      }
+      return results;
+    })
+    .catch(() => {
+      throw new Error('Cannot load the database');
+    });
+}
 
 const app = http.createServer((req, res) => {
-  if (req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Hello Holberton School!');
-  } else if (req.url === '/students') {
-    const database = process.argv[2];
-    fs.readFile(database, 'utf8', (err, data) => {
-      if (err) {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('Internal Server Error');
-      } else {
-        const students = data.split('\n').filter((line) => line !== '');
-        const fields = {};
-
-        students.forEach((student) => {
-          const [firstname, , , field] = student.split(',');
-          if (!fields[field]) {
-            fields[field] = {
-              count: 0,
-              list: [],
-            };
-          }
-          fields[field].count += 1;
-          fields[field].list.push(firstname);
-        });
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.write('This is the list of our students\n');
-        res.write(`Number of students: ${students.length}\n`);
-
-        for (const field in fields) {
-          if (Object.prototype.hasOwnProperty.call(fields, field)) {
-            res.write(`Number of students in ${field}: ${fields[field].count}. List: ${fields[field].list.join(', ')}\n`);
-          }
-        }
-
+  const reqUrl = url.parse(req.url).pathname;
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  if (reqUrl === '/') {
+    res.write('Hello Holberton School!');
+    res.end();
+  } else if (reqUrl === '/students') {
+    const path = process.argv[2];
+    res.write('This is the list of our students\n');
+    countStudents(path)
+      .then((data) => {
+        res.write(data.join('\n'));
         res.end();
-      }
-    });
-  } else {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('Not Found');
+      })
+      .catch((err) => {
+        res.write(err.message);
+        res.end();
+      });
   }
 });
-app.listen(1245, () => {
-  console.log('Server listening on port 1245');
-});
+app.listen(1245);
 
 module.exports = app;
